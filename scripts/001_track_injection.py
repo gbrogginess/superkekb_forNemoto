@@ -27,14 +27,14 @@ import xcoll as xc
 
 from scipy.constants import e as qelectron
 
-sys.path.insert(0, "/eos/user/t/tnemoto/helpers")
+sys.path.insert(0, "/eos/user/g/gbroggi/helpers/")
 from _build_particles import prepare_injection_beam
 
 ########################################
 # Check command line arguments
 ########################################
 if len(sys.argv) != 2:
-    print("Usage: python 001_injection_efficiency.py <jobID>")
+    print("Usage: python 001_track_injection.py <jobID>")
     sys.exit(1)
 
 jobID = int(sys.argv[1])
@@ -46,12 +46,12 @@ jobID = int(sys.argv[1])
 ########################################
 # Working directory
 ########################################
-WORK_DIR                 = "/eos/user/t/tnemoto/"
+WORK_DIR                 = "/eos/user/g/gbroggi/htcondor_outputs/"
 
 ########################################
 # Output directories
 ########################################
-OUT_DIR = "001_injection_efficiency_output"
+OUT_DIR = "001_track_injection"
 
 # Create output directory
 output_dir = os.path.join(WORK_DIR, OUT_DIR)
@@ -72,7 +72,7 @@ os.makedirs(outputdata_dir, exist_ok=True)
 ########################################
 # Lattice
 ########################################
-ENV_FILEPATH            = "/eos/user/t/tnemoto/xsuite/injection/config/lattices/sler_1802_60_09_aper.json"
+ENV_FILEPATH            = "/eos/user/g/gbroggi/superkekb_forNemoto//sler_1802_60_09_aper.json"
 LINE_NAME               = "line" 
 
 ########################################
@@ -97,9 +97,9 @@ CONTEXT                 = xo.ContextCpu(omp_num_threads = "auto")
 # CollDB
 ########################################
 if GEANT4_SCATTERING_ON:
-    COLLDB_FILEPATH = "/eos/user/t/tnemoto/xsuite/injection/config/colldbs/colldb_ler_2026b_0616_DIFPOS.json"
+    COLLDB_FILEPATH = "/eos/user/g/gbroggi/superkekb_forNemoto/colldbs/colldb_ler_2026b_0616_DIFPOS.json"
 else:
-    COLLDB_FILEPATH = "/eos/user/t/tnemoto/xsuite/injection/config/colldbs/colldb_ler_2025c_14112025_ba.json"
+    COLLDB_FILEPATH = "/eos/user/g/gbroggi/superkekb_forNemoto/colldbs/colldb_ler_2025c_14112025_ba.json"
 
 COLLDB_ADJUSTMENTS  = {}
 # Example of adjustment
@@ -112,11 +112,11 @@ COLLDB_ADJUSTMENTS  = {}
 ########################################
 # Particles
 ########################################
-PARTICLE_FILEPATH       = "/eos/user/t/tnemoto/xsuite/injection/config/particles/ler_yoshimoto.dat"
+PARTICLE_FILEPATH       = "/eos/user/g/gbroggi/superkekb_forNemoto/particles/ler_yoshimoto.dat"
 TARGET_NEMITT_X         = 207.2E-6             #2026ab average
 TARGET_NEMITT_Y         = 47.3E-6              #2026ab average
 BUNCH_POPULATION        = 1.8100376E+10        # 2.9nC per shot
-N_PARTICLES             = int(5E3)             # up to 50k
+N_PARTICLES             = int(5E2)             # up to 50k
 
 ########################################
 # Injection Parameters

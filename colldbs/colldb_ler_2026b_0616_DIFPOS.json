@@ -1,0 +1,137 @@
+{
+    "Collimators": {
+        "pmd06h3": {
+            "s_center": 1788.021988671247,
+            "material": "Cu",
+            "tip_material": "W",
+            "tip_thickness": 0.005,
+            "length": 0.01,
+                "jaw": [
+                0.01230,
+                -0.01160
+            ],
+            "angle": 0
+        },
+        "pmd06h4": {
+            "s_center": 1816.889734713364,
+            "material": "Cu",
+            "tip_material": "W",
+            "tip_thickness": 0.005,
+            "length": 0.01,
+            "jaw": [
+                0.01156,
+                -0.01213
+            ],
+            "angle": 0
+        },
+        "pmd03h1": {
+            "s_center": 2616.9813709475206,
+            "material": "Cu",
+            "tip_material": "W",
+            "tip_thickness": 0.005,
+            "length": 0.01,
+            "jaw": [
+                0.01043,
+                -0.01089
+            ],
+            "angle": 0
+        },
+        "pmd02h1": {
+            "s_center": 2872.967601215514,
+            "material": "Cu",
+            "tip_material": "W",
+            "tip_thickness": 0.005,
+            "length": 0.01,
+            "jaw": [
+                0.00810,
+                -0.00846
+            ],
+            "angle": 0
+        },
+        "pmd02h2": {
+            "s_center": 2895.904924949275,
+            "material": "Cu",
+            "tip_material": "W",
+            "tip_thickness": 0.005,
+            "length": 0.01,
+            "jaw": [
+                0.01115,
+                -0.01160
+            ],
+            "angle": 0
+        },
+        "pmd02h3": {
+            "s_center": 2947.4450116011053,
+            "material": "Cu",
+            "tip_material": "W",
+            "tip_thickness": 0.005,
+            "length": 0.01,
+            "jaw": [
+                0.01530,
+                -0.01430
+            ],
+            "angle": 0
+        },
+        "pmd02h4": {
+            "s_center": 3000.4247418482228,
+            "material": "Cu",
+            "tip_material": "W",
+            "tip_thickness": 0.005,
+            "length": 0.01,
+            "jaw": [
+                0.00867,
+                -0.00890
+            ],
+            "angle": 0
+        },
+        "pmd06v1": {
+            "s_center": 1870.2682823264877,
+            "material": "Cu",
+            "tip_material": "Ta",
+            "tip_thickness": 0.005,
+            "length": 0.005,
+            "jaw": [
+                0.00256,
+                -0.00250
+            ],
+            "angle": 90
+        },
+        "pmd03v4": {
+            "s_center": 2546.910243973622,
+            "material": "Cu",
+            "tip_material": "Ta",
+            "tip_thickness": 0.005,
+            "length": 0.01,
+            "jaw": [
+                0.00276,
+                -0.00095
+            ],
+            "angle": 90,
+            "offset": 0.000350
+        },
+        "pmd02v1": {
+            "s_center": 2930.472076146941,
+            "material": "Cu",
+            "tip_material": "W",
+            "tip_thickness": 0.005,
+            "length": 0.01,
+            "jaw": [
+                0.00160,
+                -0.00141
+            ],
+            "angle": 90
+        },
+        "pmd05v1": { 
+            "s_center": 2236.935112413567,
+            "material": "Cu",
+            "tip_material": "Ta",
+            "tip_thickness": 0.005,
+            "length": 0.004,
+            "jaw": [
+                    0.0979,
+                    -0.0251
+                ],
+            "angle": 90
+        }
+    }
+}
