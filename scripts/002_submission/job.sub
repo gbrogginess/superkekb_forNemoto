@@ -1,0 +1,14 @@
+executable = run.sh
+arguments = $(ProcId)
+
+output = logs/job_$(ProcId).out
+error = logs/job_$(ProcId).err
+log = logs/job_$(ProcId).log
+
+request_cpus = 8
+request_memory = 1GB
++JobFlavour = "nextweek"
+
+accounting_group = group_u_ATS.all
+
+queue 4
