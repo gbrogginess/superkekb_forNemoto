@@ -27,6 +27,7 @@ import xcoll as xc
 
 from scipy.constants import e as qelectron
 
+sys.path.insert(0, "/eos/user/t/tnemoto/helpers")
 from _build_particles import prepare_injection_beam
 
 ########################################
