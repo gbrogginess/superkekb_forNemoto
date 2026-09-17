@@ -122,7 +122,17 @@ PARTICLE_FILEPATH       = "/eos/user/g/gbroggi/superkekb_forNemoto/particles/ler
 TARGET_NEMITT_X         = 207.2E-6             #2026ab average
 TARGET_NEMITT_Y         = 47.3E-6              #2026ab average
 BUNCH_POPULATION        = 1.8100376E+10        # 2.9nC per shot
-N_PARTICLES             = int(5E2)             # up to 50k
+N_PARTICLES             = int(1E3)             # PARTICLE_FILEPATH has 50k particles, so
+                                                # 50 jobs of N_PARTICLES=1000 sample it all
+
+########################################
+# Particle chunk for this job
+########################################
+# Job i reads particles [i*N_PARTICLES : (i+1)*N_PARTICLES) from
+# PARTICLE_FILEPATH, so consecutive jobs sample the whole file with no
+# overlap and no particle left out (instead of each job randomly
+# resampling from the full file).
+PARTICLE_START_INDEX    = jobID * N_PARTICLES
 
 ########################################
 # Injection Parameters
@@ -189,6 +199,7 @@ params = {
     "TARGET_NEMITT_Y": TARGET_NEMITT_Y,
     "BUNCH_POPULATION": BUNCH_POPULATION,
     "N_PARTICLES": N_PARTICLES,
+    "PARTICLE_START_INDEX": PARTICLE_START_INDEX,
     "INJECTION_OFFSET_X": INJECTION_OFFSET_X,
     "INJECTION_OFFSET_PX": INJECTION_OFFSET_PX,
     "INJECTION_OFFSET_Y": INJECTION_OFFSET_Y,
@@ -371,6 +382,7 @@ particles  = prepare_injection_beam(
     ele_start               = ELE_START,
     n_part                  = N_PARTICLES,
     capacity                = N_PARTICLES * 4,
+    particle_start_index    = PARTICLE_START_INDEX,
     target_nemitt_x         = TARGET_NEMITT_X,
     target_nemitt_y         = TARGET_NEMITT_Y,
     initially_centre_bunch  = True,

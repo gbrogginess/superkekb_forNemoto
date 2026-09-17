@@ -24,12 +24,12 @@ import xtrack as xt
 ########################################
 # Read Yoshimoto"s .dat file and convert to dictionary
 ########################################
-def read_dat_to_dict(filename, n_turns=1, n_particles=None, seed=None):
+def read_dat_to_dict(filename, n_turns=1, n_particles=None, seed=None, start_index=None):
     """
     Reads a .dat file with a header like:
     x[m]   xp[rad]   y[m]   yp[rad]   z[m]   dpp[]   flag   @ S=...
 
-    
+
     Parameters
     ----------
     filename : str
@@ -39,7 +39,16 @@ def read_dat_to_dict(filename, n_turns=1, n_particles=None, seed=None):
     n_particles : int or None
         Number of particles to select. If None, all particles are used.
     seed : int or None
-        Random seed for reproducibility when selecting particles.
+        Random seed for reproducibility when randomly selecting particles.
+        Ignored if `start_index` is given.
+    start_index : int or None
+        If given, selects the contiguous block of `n_particles` particles
+        starting at this row index (`start_index : start_index + n_particles`)
+        instead of randomly sampling. This is used to deterministically
+        split a large particle file across independent jobs: job `i` reads
+        rows `[i * n_particles : (i + 1) * n_particles]`, so that running
+        `n_particles_total // n_particles` jobs together samples the whole
+        file exactly once, with no overlap and no particle left out.
 
     Returns
     -------
@@ -95,15 +104,26 @@ def read_dat_to_dict(filename, n_turns=1, n_particles=None, seed=None):
     reshaped = data.reshape((n_particles_total, n_turns, -1))
 
     ########################################
-    # Randomly select particles if needed
+    # Select particles if needed
     ########################################
     if n_particles < n_particles_total:
-        rng         = np.random.default_rng(seed)
-        chosen_idx  = rng.choice(
-            a       = n_particles_total,
-            size    = n_particles,
-            replace = False)
-        reshaped    = reshaped[chosen_idx]
+        if start_index is not None:
+            # Deterministic contiguous chunk (e.g. for one htcondor job)
+            stop_index = start_index + n_particles
+            if start_index < 0 or stop_index > n_particles_total:
+                raise ValueError(
+                    f"start_index={start_index} with n_particles={n_particles} "
+                    f"requests rows [{start_index}:{stop_index}), but only "
+                    f"{n_particles_total} particles are available in {filename}")
+            reshaped = reshaped[start_index:stop_index]
+        else:
+            # Random selection (backward-compatible default)
+            rng         = np.random.default_rng(seed)
+            chosen_idx  = rng.choice(
+                a       = n_particles_total,
+                size    = n_particles,
+                replace = False)
+            reshaped    = reshaped[chosen_idx]
     else:
         reshaped = reshaped[:n_particles]
 
@@ -384,6 +404,7 @@ def prepare_injection_beam(
         ele_start,
         n_part,
         capacity,
+        particle_start_index    = None,
         turn_number             = 0,
         target_nemitt_x         = None,
         target_nemitt_y         = None,
@@ -419,6 +440,11 @@ def prepare_injection_beam(
         Number of particles to consider from the input file.
     capacity : int
         Capacity for the Xpart particles object.
+    particle_start_index : int or None
+        If given, reads the contiguous block of `n_part` particles starting
+        at this row index in `input_file` instead of randomly sampling.
+        Used to split a large particle file deterministically across jobs
+        (see `read_dat_to_dict`).
     target_nemitt_x : float
         Target normalized emittance in the x-plane (m·rad).
     target_nemitt_y : float
@@ -479,12 +505,14 @@ def prepare_injection_beam(
         print(f"Processing LER file: {input_file}")
         if line.particle_ref.charge == -1:
             raise ValueError(f"LER injection beam must have positive charge")
-        dic_coordinates = read_dat_to_dict(input_file, n_turns = 1, n_particles=n_part)
+        dic_coordinates = read_dat_to_dict(
+            input_file, n_turns = 1, n_particles = n_part, start_index = particle_start_index)
     elif base_name.startswith("her"):
         print(f"Processing HER file: {input_file}")
         if line.particle_ref.charge == +1:
             raise ValueError(f"HER injection beam must have negative charge")
-        dic_coordinates = read_dat_to_dict(input_file, n_turns = 1, n_particles=n_part)
+        dic_coordinates = read_dat_to_dict(
+            input_file, n_turns = 1, n_particles = n_part, start_index = particle_start_index)
 
     ########################################
     # Extract coordinates from dictionary
