@@ -382,6 +382,18 @@ particles  = prepare_injection_beam(
     injection_delta_error   = INJECTION_ERROR_DELTA)
 
 ########################################
+# Fix longitudinal closed orbit
+########################################
+zeta_co = tw["zeta", ELE_START]
+delta_co = tw["delta", ELE_START]
+
+mask_active = particles.state == 1
+particles.zeta[mask_active] += zeta_co
+delta_temp = particles.delta.copy()
+delta_temp[mask_active] += delta_co
+particles.update_delta(delta_temp)
+
+########################################
 # Fix at element and at s
 ########################################
 particles.s[particles.state == 1]           = tw["s", ELE_START]
