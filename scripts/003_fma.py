@@ -72,6 +72,11 @@ GEMITT_Y = 1.00E-12      # This is placeholder
 GEMITT_Z = 3.00E-06      # This is placeholder
 
 ########################################
+# Start element
+########################################
+ELE_START = "injectio"
+
+########################################
 # FMA parameters
 ########################################
 NORM_X_ARRAY = np.linspace(0, 30, 61)
@@ -163,6 +168,7 @@ chunk_ids = np.array_split(np.arange(n_particles_total), N_CHUNKS_PER_PHASE)[CHU
 params = {
     "ENV_FILEPATH": ENV_FILEPATH,
     "LINE_NAME": LINE_NAME,
+    "ELE_START": ELE_START,
     "GEMITT_X": GEMITT_X,
     "GEMITT_Y": GEMITT_Y,
     "GEMITT_Z": GEMITT_Z,
@@ -363,6 +369,7 @@ particles = generate_particle_grid(
     norm_y_array  = NORM_Y_ARRAY,
     norm_z_array  = NORM_Z_ARRAY,
     select_ids    = chunk_ids,
+    ele_start     = ELE_START,
     zero_tol      = 1E-10)
 
 n_particles = len(particles.state)
@@ -382,6 +389,8 @@ line.build_tracker(_context = CONTEXT)
 
 line.track(
     particles            = particles,
+    ele_start            = ELE_START,
+    ele_stop             = ELE_START,
     num_turns            = N_TURNS,
     freeze_longitudinal  = FREEZE_LONGITUDINAL,
     turn_by_turn_monitor = True,
@@ -402,12 +411,13 @@ line.build_tracker(_context = TWISS_CONTEXT)
 x_norm, px_norm, y_norm, py_norm, zeta_norm, pzeta_norm = [], [], [], [], [], []
 for turn in range(N_TURNS):
     fake_particles = line.build_particles(
-        x     = last_track.x[:, turn],
-        px    = last_track.px[:, turn],
-        y     = last_track.y[:, turn],
-        py    = last_track.py[:, turn],
-        zeta  = last_track.zeta[:, turn],
-        delta = last_track.delta[:, turn])
+        x          = last_track.x[:, turn],
+        px         = last_track.px[:, turn],
+        y          = last_track.y[:, turn],
+        py         = last_track.py[:, turn],
+        zeta       = last_track.zeta[:, turn],
+        delta      = last_track.delta[:, turn],
+        at_element = ELE_START)
     # TODO: NEED TO PASS EMITTANCES
     norm_coords = tw.get_normalized_coordinates(fake_particles)
     x_norm.append(norm_coords.x_norm)

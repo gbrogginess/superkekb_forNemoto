@@ -35,6 +35,7 @@ def generate_particle_grid(
         norm_x_array,
         norm_y_array,
         norm_z_array,
+        ele_start,
         select_ids = None,
         zero_tol   = 1E-10):
     """
@@ -44,6 +45,10 @@ def generate_particle_grid(
         Indices into the flattened (norm_a, norm_b) grid to build particles
         for. Used to track only a chunk of the full grid (htcondor split).
         If None, the full grid is built.
+    ele_start : str
+        Name of the element at which particles are generated (and from
+        which they must subsequently be tracked), so that the normalized
+        coordinates and closed orbit used are the ones at that location.
     """
 
     assert scan_mode in ("xy", "zx", "zy")
@@ -71,12 +76,13 @@ def generate_particle_grid(
         norm_py_values = remove_zeros(norm_py_values, zero_tol, sigma = beamsizes.sigma_py[0])
 
         particles = line.build_particles(
-            x_norm   = norm_x_values,
-            px_norm  = norm_px_values,
-            y_norm   = norm_y_values,
-            py_norm  = norm_py_values,
-            nemitt_x = nemitt_x,
-            nemitt_y = nemitt_y)
+            x_norm     = norm_x_values,
+            px_norm    = norm_px_values,
+            y_norm     = norm_y_values,
+            py_norm    = norm_py_values,
+            nemitt_x   = nemitt_x,
+            nemitt_y   = nemitt_y,
+            at_element = ele_start)
 
     elif scan_mode == "zx":
         norm_z_grid, norm_x_grid = np.meshgrid(norm_z_array, norm_x_array, indexing = "ij")
@@ -104,7 +110,8 @@ def generate_particle_grid(
             pzeta_norm = norm_pz_values,
             nemitt_x   = nemitt_x,
             nemitt_y   = nemitt_y,
-            nemitt_z   = nemitt_zeta)
+            nemitt_z   = nemitt_zeta,
+            at_element = ele_start)
 
     elif scan_mode == "zy":
         norm_z_grid, norm_y_grid = np.meshgrid(norm_z_array, norm_y_array, indexing = "ij")
@@ -132,7 +139,8 @@ def generate_particle_grid(
             pzeta_norm = norm_pz_values,
             nemitt_x   = nemitt_x,
             nemitt_y   = nemitt_y,
-            nemitt_z   = nemitt_zeta)
+            nemitt_z   = nemitt_zeta,
+            at_element = ele_start)
 
     else:
         raise ValueError(f"Invalid scan_mode: {scan_mode}. Must be one of 'xy', 'zx', or 'zy'.")
