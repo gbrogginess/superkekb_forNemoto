@@ -142,12 +142,32 @@ def generate_particle_grid(
 ################################################################################
 # Tunes from NAFF
 ################################################################################
+def _wrap_tune(freq, is_longitudinal):
+    """
+    Fold a raw NAFF frequency into [0, 1).
+
+    naff.multiparticle_harmonics(x=..., px=...) builds the complex signal
+    z = a_norm - 1j * pa_norm and runs a complex FFT (np.fft.fft) on it, so
+    the returned frequency keeps its sign (unlike a real-valued FFT, whose
+    spectrum is mirrored at +f/-f). For the transverse planes that sign is
+    the usual "or 1 - Q" ambiguity, so wrapping with `% 1` is correct (it is
+    equivalent to `1 + freq` for a negative freq). For the longitudinal
+    plane (zeta, pzeta) the same complex-signal convention makes NAFF return
+    the synchrotron tune with a negative sign instead, so a plain `% 1` folds
+    a small qs (e.g. 0.015) up to ~1 - qs (e.g. 0.985); the sign must be
+    flipped instead of wrapped to recover the physical qs.
+    """
+    if is_longitudinal:
+        freq = -freq if freq < 0.0 else freq
+    return freq % 1
+
 def tunes_from_naff(
         a_norm_array,
         pa_norm_array,
         nominal_tune          = None,
         strongest_peak_factor = 4.0,
-        max_candidates        = 100):
+        max_candidates        = 100,
+        is_longitudinal       = False):
     """
     Compute tunes for each particle using NAFFLIB, correctly removing DC offsets.
 
@@ -157,6 +177,10 @@ def tunes_from_naff(
         Array of normalized amplitudes, shape (n_particles, n_turns).
     pa_norm_array : np.ndarray
         Array of normalized momenta, shape (n_particles, n_turns).
+    is_longitudinal : bool, optional
+        Set True when (a_norm_array, pa_norm_array) is (zeta_norm, pzeta_norm),
+        so the raw NAFF frequency is folded into [0, 1) by sign-flip rather
+        than by modulo (see `_wrap_tune`).
 
     Returns
     -------
@@ -208,7 +232,7 @@ def tunes_from_naff(
         strongest_amp  = amp_mag[strongest_idx]
 
         if nominal_tune is None:
-            tunes[i] = strongest_freq % 1
+            tunes[i] = _wrap_tune(strongest_freq, is_longitudinal)
             continue
 
         nearby_mask = tune_distance(freq_i, nominal_tune) < 0.2
@@ -218,7 +242,7 @@ def tunes_from_naff(
 
         candidate_count = min(max_candidates, len(amp_mag))
         if candidate_count == 0:
-            tunes[i] = strongest_freq % 1
+            tunes[i] = _wrap_tune(strongest_freq, is_longitudinal)
             continue
 
         strongest_candidates = np.argsort(amp_mag)[-candidate_count:]
@@ -236,7 +260,7 @@ def tunes_from_naff(
         else:
             chosen_freq = nominal_freq
 
-        tunes[i] = chosen_freq % 1
+        tunes[i] = _wrap_tune(chosen_freq, is_longitudinal)
 
     assert len(tunes) == n_particles
 
@@ -289,8 +313,9 @@ def run_fma(
             pa_norm_array = norm_tracking_records.py_norm[:, valid_mask].T,
             nominal_tune  = nominal_tune_y)
         tunes_z[valid_mask] = tunes_from_naff(
-            a_norm_array  = norm_tracking_records.zeta_norm[:, valid_mask].T,
-            pa_norm_array = norm_tracking_records.pzeta_norm[:, valid_mask].T)
+            a_norm_array    = norm_tracking_records.zeta_norm[:, valid_mask].T,
+            pa_norm_array   = norm_tracking_records.pzeta_norm[:, valid_mask].T,
+            is_longitudinal = True)
 
     # Tunes over sliding half-length windows, to get the tune diffusion
     tunes_x_windows = []
@@ -324,8 +349,9 @@ def run_fma(
                 pa_norm_array = norm_tracking_records.py_norm[lower_index:upper_index, valid_mask].T,
                 nominal_tune  = nominal_tune_y)
             tunes_z_window[valid_mask] = tunes_from_naff(
-                a_norm_array  = norm_tracking_records.zeta_norm[lower_index:upper_index, valid_mask].T,
-                pa_norm_array = norm_tracking_records.pzeta_norm[lower_index:upper_index, valid_mask].T)
+                a_norm_array    = norm_tracking_records.zeta_norm[lower_index:upper_index, valid_mask].T,
+                pa_norm_array   = norm_tracking_records.pzeta_norm[lower_index:upper_index, valid_mask].T,
+                is_longitudinal = True)
 
         tunes_x_windows.append(tunes_x_window)
         tunes_y_windows.append(tunes_y_window)
