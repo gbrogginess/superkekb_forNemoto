@@ -156,7 +156,8 @@ da_xy = track_da(
     gemitt_y         = GEMITT_Y,
     gemitt_z         = GEMITT_Z,
     mode             = "xy",
-    tracking_context = CONTEXT)
+    tracking_context = CONTEXT,
+    ele_start        = ELE_START)
 
 ################################################################################
 # Save outputs

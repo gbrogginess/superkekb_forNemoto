@@ -101,6 +101,7 @@ def track_frontiers(
         norm_a_grid:            np.ndarray,
         master_particles:       xt.Particles,
         n_turns:                int,
+        ele_start:              str,
         track_time:             bool            = True,
         neighbourhood:          int             = 8,
         with_progress:          bool | int      = 10,
@@ -118,6 +119,9 @@ def track_frontiers(
         The master particles to track.
     n_turns : int
         The number of turns to track.
+    ele_start : str
+        Name of the element at which particles are generated and at
+        which each turn starts/stops.
     track_time : bool, optional
         Whether to track and print elapsed time. Default is True.
     neighbourhood : {4, 8}, optional
@@ -209,6 +213,8 @@ def track_frontiers(
         ########################################
         line.track(
             particles       = particles,
+            ele_start       = ele_start,
+            ele_stop        = ele_start,
             num_turns       = n_turns,
             with_progress   = with_progress)                    # type: ignore
         
@@ -297,7 +303,8 @@ def track_da(
         gemitt_y:           float,
         gemitt_z:           float,
         mode:               str,
-        tracking_context:   xo.ContextCpu):
+        tracking_context:   xo.ContextCpu,
+        ele_start:          str):
     """
     Track Dynamic Aperture in specified mode.
 
@@ -323,6 +330,9 @@ def track_da(
         The tracking mode.
     tracking_context : xo.ContextCpu
         The xobjects context to use for tracking.
+    ele_start : str
+        Name of the element at which particles are generated and from
+        which each turn is tracked.
     """
 
     ########################################
@@ -350,6 +360,8 @@ def track_da(
     ########################################
     print_heading("Calculating Twiss with Radiation", mode = "subsection")
     tw  = line.twiss(eneloss_and_damping = True)
+    zeta_co  = tw["zeta", ele_start]
+    delta_co = tw["delta", ele_start]
 
     ########################################
     # Calculate Normalised Emittances
@@ -393,48 +405,52 @@ def track_da(
             particles_all_phases.append(line.build_particles(
                 nemitt_x    = nemitt_x,
                 nemitt_y    = nemitt_y,
+                at_element  = ele_start,
                 x_norm      = NORM_A_GRID.flatten() * np.cos(phase),
                 px_norm     = NORM_A_GRID.flatten() * np.sin(phase),
                 y_norm      = NORM_B_GRID.flatten() * np.cos(phase),
                 py_norm     = NORM_B_GRID.flatten() * np.sin(phase),
-                zeta        = tw.zeta[0],
-                delta       = tw.delta[0]))
+                zeta        = zeta_co,
+                delta       = delta_co))
         elif mode == "zx":
             particles_all_phases.append(line.build_particles(
                 nemitt_x    = nemitt_x,
                 nemitt_y    = nemitt_y,
+                at_element  = ele_start,
                 x_norm      = NORM_B_GRID.flatten() * np.cos(phase),
                 px_norm     = NORM_B_GRID.flatten() * np.sin(phase),
                 y_norm      = 0,
                 py_norm     = 0,
                 zeta        = NORM_A_GRID.flatten() * np.cos(phase) * \
-                    sigma_z + tw.zeta[0],
+                    sigma_z + zeta_co,
                 delta       = NORM_A_GRID.flatten() * np.sin(phase) * \
-                    sigma_delta + tw.delta[0]))
+                    sigma_delta + delta_co))
         elif mode == "zy":
             particles_all_phases.append(line.build_particles(
                 nemitt_x    = nemitt_x,
                 nemitt_y    = nemitt_y,
+                at_element  = ele_start,
                 x_norm      = 0,
                 px_norm     = 0,
                 y_norm      = NORM_B_GRID.flatten() * np.cos(phase),
                 py_norm     = NORM_B_GRID.flatten() * np.sin(phase),
                 zeta        = NORM_A_GRID.flatten() * np.cos(phase) * \
-                    sigma_z + tw.zeta[0],
+                    sigma_z + zeta_co,
                 delta       = NORM_A_GRID.flatten() * np.sin(phase) * \
-                    sigma_delta + tw.delta[0]))
+                    sigma_delta + delta_co))
         elif mode == "ma":
             particles_all_phases.append(line.build_particles(
                 nemitt_x    = nemitt_x,
                 nemitt_y    = nemitt_y,
+                at_element  = ele_start,
                 x_norm      = NORM_B_GRID.flatten() * np.cos(phase),
                 px_norm     = NORM_B_GRID.flatten() * np.sin(phase),
                 y_norm      = NORM_B_GRID.flatten() * np.cos(phase),
                 py_norm     = NORM_B_GRID.flatten() * np.sin(phase),
                 zeta        = NORM_A_GRID.flatten() * np.cos(phase) * \
-                    sigma_z + tw.zeta[0],
+                    sigma_z + zeta_co,
                 delta       = NORM_A_GRID.flatten() * np.sin(phase) * \
-                    sigma_delta + tw.delta[0]))
+                    sigma_delta + delta_co))
 
     ################################################################################
     # Dynamic Aperture Tracking
@@ -460,6 +476,7 @@ def track_da(
             norm_a_grid             = NORM_A_GRID,
             master_particles        = particles,
             n_turns                 = n_turns,
+            ele_start               = ele_start,
             track_time              = True,
             neighbourhood           = 8,
             with_progress           = 10,
