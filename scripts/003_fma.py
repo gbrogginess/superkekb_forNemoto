@@ -93,10 +93,16 @@ N_WINDOWS = 10
 # Configuration
 ########################################
 BEAMBEAM_ON                = True
-RADIATION_MODEL            = "mean"
+RADIATION_MODEL            = "mean"        # None, "mean", or "quantum"
 FREEZE_LONGITUDINAL        = False
 REDUCED_XSUITE_INTEGRATION = False
 RESONANCE_ORDER            = 10      # only used by downstream Q-plane plotting
+
+# twiss() (and build_particles() calls that use it internally) cannot be run
+# with a stochastic radiation model, so we twiss/generate particles with
+# "mean" instead and only switch to the real RADIATION_MODEL right before
+# tracking.
+TWISS_RADIATION_MODEL      = "mean" if RADIATION_MODEL == "quantum" else RADIATION_MODEL
 
 ########################################
 # Beam-Beam Parameters
@@ -258,8 +264,8 @@ if REDUCED_XSUITE_INTEGRATION:
 ########################################
 line.discard_tracker()
 line.build_tracker(_context = TWISS_CONTEXT)
-if RADIATION_MODEL is not None:
-    line.configure_radiation(model = RADIATION_MODEL)
+if TWISS_RADIATION_MODEL is not None:
+    line.configure_radiation(model = TWISS_RADIATION_MODEL)
 
 ########################################
 # Twiss
@@ -384,6 +390,7 @@ delta0      = particles.delta.copy()
 ################################################################################
 # Track
 ################################################################################
+line.configure_radiation(model = RADIATION_MODEL)
 line.discard_tracker()
 line.build_tracker(_context = CONTEXT)
 
@@ -404,6 +411,9 @@ loss_turns = particles.at_turn.copy()
 
 line.discard_tracker()
 line.build_tracker(_context = TWISS_CONTEXT)
+# build_particles(at_element=...) below uses twiss() internally, which
+# cannot be run with the stochastic "quantum" radiation model.
+line.configure_radiation(model = TWISS_RADIATION_MODEL)
 
 ################################################################################
 # Compute normalised coordinates turn-by-turn

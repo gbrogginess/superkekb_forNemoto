@@ -31,7 +31,12 @@ LINE_NAME               = "line"
 ########################################
 # Switching configurations
 ########################################
-RADIATION_MODEL         = "mean"
+RADIATION_MODEL         = "mean"        # None, "mean", or "quantum"
+
+# twiss() cannot be run with a stochastic radiation model, so we twiss with
+# "mean" instead and only switch to the real RADIATION_MODEL right before
+# the EBE tracking loop.
+TWISS_RADIATION_MODEL   = "mean" if RADIATION_MODEL == "quantum" else RADIATION_MODEL
 
 ########################################
 # Injection Parameters
@@ -92,7 +97,7 @@ line.cycle(ELE_START)
 ########################################
 # Configure radiation
 ########################################
-line.configure_radiation(model = RADIATION_MODEL)
+line.configure_radiation(model = TWISS_RADIATION_MODEL)
 
 ########################################
 # Build tracker
@@ -150,6 +155,13 @@ test_part.zeta[mask_active] += zeta_co
 delta_temp = test_part.delta.copy()
 delta_temp[mask_active] += delta_co
 test_part.update_delta(delta_temp)
+
+########################################
+# Configure radiation for tracking
+########################################
+line.configure_radiation(model = RADIATION_MODEL)
+line.discard_tracker()
+line.build_tracker(_context = CONTEXT)
 
 ########################################
 # Build storage

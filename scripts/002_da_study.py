@@ -71,8 +71,9 @@ LINE_NAME    = "line"
 ########################################
 # Tracking parameters
 ########################################
-ELE_START = "injectio"
-N_TURNS   = 1000
+ELE_START       = "injectio"
+N_TURNS         = 1000
+RADIATION_MODEL = "mean"      # None, "mean", or "quantum"
 
 ########################################
 # Multithreading
@@ -119,6 +120,7 @@ params = {
     "LINE_NAME": LINE_NAME,
     "ELE_START": ELE_START,
     "N_TURNS": N_TURNS,
+    "RADIATION_MODEL": RADIATION_MODEL,
     "CONTEXT": CONTEXT.__class__.__name__,
     "PHASES": PHASES.tolist(),
     "JOB_PHASES": JOB_PHASES.tolist(),
@@ -157,7 +159,8 @@ da_xy = track_da(
     gemitt_z         = GEMITT_Z,
     mode             = "xy",
     tracking_context = CONTEXT,
-    ele_start        = ELE_START)
+    ele_start        = ELE_START,
+    radiation_model  = RADIATION_MODEL)
 
 ################################################################################
 # Save outputs

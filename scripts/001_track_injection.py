@@ -80,8 +80,14 @@ LINE_NAME               = "line"
 ########################################
 GEANT4_SCATTERING_ON    = True
 BEAMBEAM_ON             = True
-RADIATION_MODEL         = "mean"
+RADIATION_MODEL         = "mean"        # None, "mean", or "quantum"
 TRANSVERSE_ONLY         = False
+
+# twiss() (and build_particles() calls that use it internally) cannot be run
+# with a stochastic radiation model, so we twiss/generate particles with
+# "mean" instead and only switch to the real RADIATION_MODEL right before
+# tracking.
+TWISS_RADIATION_MODEL   = "mean" if RADIATION_MODEL == "quantum" else RADIATION_MODEL
 
 ########################################
 # Tracking Parameters
@@ -216,7 +222,7 @@ line    = env.lines["line"]
 ########################################
 # Configure radiation
 ########################################
-line.configure_radiation(model =  RADIATION_MODEL)
+line.configure_radiation(model =  TWISS_RADIATION_MODEL)
 
 ########################################
 # Twiss

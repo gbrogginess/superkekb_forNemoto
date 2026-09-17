@@ -304,7 +304,8 @@ def track_da(
         gemitt_z:           float,
         mode:               str,
         tracking_context:   xo.ContextCpu,
-        ele_start:          str):
+        ele_start:          str,
+        radiation_model:    str | None):
     """
     Track Dynamic Aperture in specified mode.
 
@@ -333,6 +334,13 @@ def track_da(
     ele_start : str
         Name of the element at which particles are generated and from
         which each turn is tracked.
+    radiation_model : {None, "mean", "quantum"}
+        Radiation model used for the actual DA tracking. twiss() (and the
+        build_particles() calls below, which use it internally to get the
+        W-matrix/closed-orbit at ele_start) cannot be run with the
+        stochastic "quantum" model, so twiss and particle generation always
+        use "mean" instead, and radiation_model is only applied right before
+        tracking starts.
     """
 
     ########################################
@@ -350,10 +358,12 @@ def track_da(
     ########################################
     # Twiss
     ########################################
+    twiss_radiation_model = "mean" if radiation_model == "quantum" else radiation_model
+
     print_heading("Configuring Mean Radiation", mode = "subsection")
     line.discard_tracker()
     line.build_tracker(_context = xo.context_default)
-    line.configure_radiation(model = "mean")
+    line.configure_radiation(model = twiss_radiation_model)
 
     ########################################
     # Twiss
@@ -460,6 +470,7 @@ def track_da(
     # Build Trackers
     ########################################
     print_heading("Building DA Trackers", mode = "subsection")
+    line.configure_radiation(model = radiation_model)
     line.discard_tracker()
     line.build_tracker(_context = tracking_context)
     
