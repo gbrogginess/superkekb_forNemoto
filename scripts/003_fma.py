@@ -79,8 +79,8 @@ ELE_START = "injectio"
 ########################################
 # FMA parameters
 ########################################
-NORM_X_ARRAY = np.linspace(0, 30, 61)
-NORM_Y_ARRAY = np.linspace(0, 300, 61)
+NORM_X_ARRAY = np.linspace(0, 40, 71)
+NORM_Y_ARRAY = np.linspace(0, 400, 81)
 NORM_Z_ARRAY = np.linspace(0, 20, 41)
 
 SCAN_MODE = "xy"      # "xy", "zx", "zy"
@@ -92,10 +92,10 @@ N_WINDOWS = 10
 ########################################
 # Configuration
 ########################################
-BEAMBEAM_ON                = True
-RADIATION_MODEL            = "mean"        # None, "mean", or "quantum"
+BEAMBEAM_ON                = False
+RADIATION_MODEL            = None        # None, "mean", or "quantum"
 FREEZE_LONGITUDINAL        = False
-REDUCED_XSUITE_INTEGRATION = False
+REDUCED_XSUITE_INTEGRATION = True
 RESONANCE_ORDER            = 10      # only used by downstream Q-plane plotting
 
 # twiss() (and build_particles() calls that use it internally) cannot be run
@@ -147,7 +147,7 @@ def compute_twiss6d(line):
 # 003_merge_fma.py reassembles the full grid afterwards. Increase
 # N_CHUNKS_PER_PHASE for more parallelism, decrease it (down to 1) for
 # fewer, larger jobs.
-N_CHUNKS_PER_PHASE = 5
+N_CHUNKS_PER_PHASE = 10
 
 N_JOBS = len(PHASES) * N_CHUNKS_PER_PHASE
 if jobID >= N_JOBS:
@@ -219,6 +219,11 @@ params = {
 ########################################
 env  = xt.load(ENV_FILEPATH)
 line = env[LINE_NAME]
+
+########################################
+# Cycle the line to ELE_START
+########################################
+line.cycle(name_first_element = ELE_START)
 
 ########################################
 # Configure models and integrators
@@ -387,7 +392,6 @@ particles = generate_particle_grid(
     norm_y_array  = NORM_Y_ARRAY,
     norm_z_array  = NORM_Z_ARRAY,
     select_ids    = chunk_ids,
-    ele_start     = ELE_START,
     zero_tol      = 1E-10)
 
 n_particles = len(particles.state)
@@ -408,8 +412,6 @@ line.build_tracker(_context = CONTEXT)
 
 line.track(
     particles            = particles,
-    ele_start            = ELE_START,
-    ele_stop             = ELE_START,
     num_turns            = N_TURNS,
     freeze_longitudinal  = FREEZE_LONGITUDINAL,
     turn_by_turn_monitor = True,
@@ -444,8 +446,8 @@ for turn in range(N_TURNS):
         y          = last_track.y[:, turn],
         py         = last_track.py[:, turn],
         zeta       = last_track.zeta[:, turn],
-        delta      = last_track.delta[:, turn],
-        at_element = ELE_START)
+        delta      = last_track.delta[:, turn])
+    
     norm_coords = tw.get_normalized_coordinates(
         fake_particles,
         nemitt_x=nemitt_x,
