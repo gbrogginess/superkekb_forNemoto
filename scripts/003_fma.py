@@ -107,22 +107,22 @@ TWISS_RADIATION_MODEL      = "mean" if RADIATION_MODEL == "quantum" else RADIATI
 ########################################
 # Beam-Beam Parameters
 ########################################
-GEMITT_X_HER = 4.50E-9
-GEMITT_Y_HER = 25.0E-12
-GEMITT_Z_HER = 3.20E-6
+GEMITT_X_HER            = 5.88E-9
+GEMITT_Y_HER            = 80.0E-12
+GEMITT_Z_HER            = 3.20E-6
 
-BETX_HER = 60E-3
-BETY_HER = 1E-3
-BETS_HER = 8.00
+BETX_HER                = 55E-3
+BETY_HER                = 0.9E-3
+BETS_HER                = 8.00
 
-HALF_XING_RAD = 41.5E-3
+HALF_XING_RAD           = 41.5E-3
 
-CURRENT_HER = 1.000
-CHARGE_HER  = -1
-N_BUNCHES   = 2300
+CURRENT_HER             = 314.1E-3
+CHARGE_HER              = -1
+N_BUNCHES               = 393
 
-N_SLICES = 301
-BB_SCALE = 1.0
+N_SLICES                = 301
+BB_SCALE                = 1.0
 
 ########################################
 # Multithreading
@@ -147,7 +147,7 @@ def compute_twiss6d(line):
 # 003_merge_fma.py reassembles the full grid afterwards. Increase
 # N_CHUNKS_PER_PHASE for more parallelism, decrease it (down to 1) for
 # fewer, larger jobs.
-N_CHUNKS_PER_PHASE = 10
+N_CHUNKS_PER_PHASE = 5
 
 N_JOBS = len(PHASES) * N_CHUNKS_PER_PHASE
 if jobID >= N_JOBS:

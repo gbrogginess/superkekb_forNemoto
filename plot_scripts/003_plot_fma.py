@@ -4,7 +4,7 @@
 ================================================================================
 Belle II Simulation & Modelling Group
 
-Authors:    J.P.T. Salvesen, T. Nemoto
+Authors:    J.P.T. Salvesen, T. Nemoto, G. Broggi
 Adapted for command-line / alias use (analogous to plot_lossmap.py) by request.
 
 Usage:
