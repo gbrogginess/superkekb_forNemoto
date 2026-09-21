@@ -13,6 +13,21 @@ import numpy as np
 import nafflib as naff
 
 ################################################################################
+# NAFF configuration
+################################################################################
+# Number of spectral lines NAFF extracts per particle.
+#
+# nafflib's multiparticle_harmonics() defaults to num_harmonics=1, which made
+# the whole `nominal_tune` peak-selection logic in tunes_from_naff() dead code:
+# with a single candidate, "strongest peak" and "peak closest to the nominal
+# tune" are trivially the same line and the fallback can never trigger. Asking
+# for a few lines is what makes that protection actually work.
+#
+# NOTE: this changes the extracted tunes with respect to runs made before this
+# was fixed. Set NAFF_N_HARMONICS = 1 to reproduce the old numbers exactly.
+NAFF_N_HARMONICS = 5
+
+################################################################################
 # Remove Zeros
 ################################################################################
 def remove_zeros(values, zero_tol, sigma = 1E-6):
@@ -175,7 +190,8 @@ def tunes_from_naff(
         nominal_tune          = None,
         strongest_peak_factor = 4.0,
         max_candidates        = 100,
-        is_longitudinal       = False):
+        is_longitudinal       = False,
+        num_harmonics         = NAFF_N_HARMONICS):
     """
     Compute tunes for each particle using NAFFLIB, correctly removing DC offsets.
 
@@ -189,6 +205,10 @@ def tunes_from_naff(
         Set True when (a_norm_array, pa_norm_array) is (zeta_norm, pzeta_norm),
         so the raw NAFF frequency is folded into [0, 1) by sign-flip rather
         than by modulo (see `_wrap_tune`).
+    num_harmonics : int, optional
+        Number of spectral lines NAFF extracts per particle. Must be > 1 for
+        the `nominal_tune` peak-selection below to have anything to choose
+        between; see NAFF_N_HARMONICS.
 
     Returns
     -------
@@ -205,8 +225,9 @@ def tunes_from_naff(
     assert len(pa_dc_offset) == n_particles
 
     amplitudes, frequencies = naff.multiparticle_harmonics(
-        x  = (a_norm_array.T - a_dc_offset).T,
-        px = (pa_norm_array.T - pa_dc_offset).T)
+        x             = (a_norm_array.T - a_dc_offset).T,
+        px            = (pa_norm_array.T - pa_dc_offset).T,
+        num_harmonics = num_harmonics)
 
     amplitudes  = np.asarray(amplitudes)
     frequencies = np.asarray(frequencies)
@@ -217,8 +238,11 @@ def tunes_from_naff(
         frequencies = frequencies[:, np.newaxis]
 
     def tune_distance(values, target):
-        delta = np.abs(values - target)
-        return np.minimum(delta, 1 - delta)
+        # Fold into [0, 1) FIRST: the raw NAFF frequencies are signed, so
+        # |f - target| can exceed 1 and `1 - delta` would then come out
+        # negative, i.e. a far-away peak would be reported as distance ~0.
+        delta = np.abs(values - target) % 1.0
+        return np.minimum(delta, 1.0 - delta)
 
     tunes = np.empty(n_particles, dtype = float)
 
@@ -283,7 +307,8 @@ def run_fma(
         scan_mode,
         nominal_tune_x,
         nominal_tune_y,
-        valid_mask = None):
+        valid_mask    = None,
+        num_harmonics = NAFF_N_HARMONICS):
     """
     Extract per-particle tunes and a tune-diffusion coefficient from
     turn-by-turn normalised tracking data.
@@ -306,6 +331,15 @@ def run_fma(
         if valid_mask.shape[0] != n_particles:
             raise ValueError(f"valid_mask has length {valid_mask.shape[0]}, expected {n_particles}")
 
+    # Loud accounting of what is (and is not) being analysed: particles
+    # excluded here come back as NaN tunes / NaN diffusion, and downstream
+    # plots must not drop them silently.
+    n_excluded = int((~valid_mask).sum())
+    print(f"run_fma: {n_particles - n_excluded}/{n_particles} particles analysed, "
+          f"{n_excluded} excluded (lost) -> NaN tunes and NaN diff_coeff")
+    if n_excluded == n_particles:
+        print("run_fma: WARNING - no valid particles, all outputs will be NaN")
+
     # Overall tunes, only for particles that are still alive
     tunes_x = np.full(n_particles, np.nan, dtype = float)
     tunes_y = np.full(n_particles, np.nan, dtype = float)
@@ -315,15 +349,18 @@ def run_fma(
         tunes_x[valid_mask] = tunes_from_naff(
             a_norm_array  = norm_tracking_records.x_norm[:, valid_mask].T,
             pa_norm_array = norm_tracking_records.px_norm[:, valid_mask].T,
-            nominal_tune  = nominal_tune_x)
+            nominal_tune  = nominal_tune_x,
+            num_harmonics = num_harmonics)
         tunes_y[valid_mask] = tunes_from_naff(
             a_norm_array  = norm_tracking_records.y_norm[:, valid_mask].T,
             pa_norm_array = norm_tracking_records.py_norm[:, valid_mask].T,
-            nominal_tune  = nominal_tune_y)
+            nominal_tune  = nominal_tune_y,
+            num_harmonics = num_harmonics)
         tunes_z[valid_mask] = tunes_from_naff(
             a_norm_array    = norm_tracking_records.zeta_norm[:, valid_mask].T,
             pa_norm_array   = norm_tracking_records.pzeta_norm[:, valid_mask].T,
-            is_longitudinal = True)
+            is_longitudinal = True,
+            num_harmonics   = num_harmonics)
 
     # Tunes over sliding half-length windows, to get the tune diffusion
     tunes_x_windows = []
@@ -351,15 +388,18 @@ def run_fma(
             tunes_x_window[valid_mask] = tunes_from_naff(
                 a_norm_array  = norm_tracking_records.x_norm[lower_index:upper_index, valid_mask].T,
                 pa_norm_array = norm_tracking_records.px_norm[lower_index:upper_index, valid_mask].T,
-                nominal_tune  = nominal_tune_x)
+                nominal_tune  = nominal_tune_x,
+            num_harmonics = num_harmonics)
             tunes_y_window[valid_mask] = tunes_from_naff(
                 a_norm_array  = norm_tracking_records.y_norm[lower_index:upper_index, valid_mask].T,
                 pa_norm_array = norm_tracking_records.py_norm[lower_index:upper_index, valid_mask].T,
-                nominal_tune  = nominal_tune_y)
+                nominal_tune  = nominal_tune_y,
+            num_harmonics = num_harmonics)
             tunes_z_window[valid_mask] = tunes_from_naff(
                 a_norm_array    = norm_tracking_records.zeta_norm[lower_index:upper_index, valid_mask].T,
                 pa_norm_array   = norm_tracking_records.pzeta_norm[lower_index:upper_index, valid_mask].T,
-                is_longitudinal = True)
+                is_longitudinal = True,
+            num_harmonics   = num_harmonics)
 
         tunes_x_windows.append(tunes_x_window)
         tunes_y_windows.append(tunes_y_window)
@@ -378,10 +418,14 @@ def run_fma(
         change_y[valid_mask] = np.std(tunes_y_windows[:, valid_mask], axis = 0)
         change_z[valid_mask] = np.std(tunes_z_windows[:, valid_mask], axis = 0)
 
-    # Get rid of exactly 0 values for the log
-    change_x = np.where(np.isclose(change_x, 0), 1E-12, change_x)
-    change_y = np.where(np.isclose(change_y, 0), 1E-12, change_y)
-    change_z = np.where(np.isclose(change_z, 0), 1E-12, change_z)
+    # Get rid of exactly 0 values for the log.
+    # NOTE: this used to be np.isclose(change, 0), whose default atol is 1E-8,
+    # so every genuinely small (but perfectly real) tune spread below 1E-8 was
+    # flattened onto the 1E-12 floor -- that silently destroyed ~20% of diff_x.
+    # Only exact zeros need the floor.
+    change_x = np.where(change_x == 0, 1E-12, change_x)
+    change_y = np.where(change_y == 0, 1E-12, change_y)
+    change_z = np.where(change_z == 0, 1E-12, change_z)
 
     diff_coeff = np.full(n_particles, np.nan, dtype = float)
     diff_x     = np.full(n_particles, np.nan, dtype = float)
@@ -405,5 +449,14 @@ def run_fma(
     tunes_x = np.where(valid_mask, tunes_x % 1, np.nan)
     tunes_y = np.where(valid_mask, tunes_y % 1, np.nan)
     tunes_z = np.where(valid_mask, tunes_z % 1, np.nan)
+
+    # A NaN among *valid* particles means NAFF failed, which is a different
+    # (and more worrying) thing than a lost particle. Say so explicitly.
+    for label, arr in (("tunes_x", tunes_x), ("tunes_y", tunes_y),
+                       ("tunes_z", tunes_z), ("diff_coeff", diff_coeff)):
+        n_bad = int(np.isnan(arr[valid_mask]).sum())
+        if n_bad:
+            print(f"run_fma: WARNING - {n_bad} surviving particles have NaN {label} "
+                  f"(NAFF failure, not a loss)")
 
     return tunes_x, tunes_y, tunes_z, diff_coeff, diff_x, diff_y, diff_z
