@@ -169,7 +169,19 @@ elif SCAN_MODE == "zy":
 else:
     raise ValueError(f"Invalid SCAN_MODE: {SCAN_MODE}. Must be one of 'xy', 'zx', or 'zy'.")
 
-chunk_ids = np.array_split(np.arange(n_particles_total), N_CHUNKS_PER_PHASE)[CHUNK_IDX]
+all_chunks = np.array_split(np.arange(n_particles_total), N_CHUNKS_PER_PHASE)
+chunk_ids  = all_chunks[CHUNK_IDX]
+
+# The chunks must tile the grid exactly once: no gaps, no overlaps. This is
+# cheap and is verified independently by every job.
+_covered = np.sort(np.concatenate(all_chunks))
+assert np.array_equal(_covered, np.arange(n_particles_total)), \
+    (f"chunk split does not tile the grid exactly once "
+     f"(N_CHUNKS_PER_PHASE = {N_CHUNKS_PER_PHASE}, "
+     f"n_particles_total = {n_particles_total})")
+assert len(chunk_ids) > 0, \
+    (f"chunk {CHUNK_IDX} is empty: N_CHUNKS_PER_PHASE = {N_CHUNKS_PER_PHASE} "
+     f"exceeds n_particles_total = {n_particles_total}")
 
 params = {
     "ENV_FILEPATH": ENV_FILEPATH,
@@ -492,6 +504,54 @@ Jz = 0.5 * az**2
 Ax = np.sqrt(2 * Jx)
 Ay = np.sqrt(2 * Jy)
 Az = np.sqrt(2 * Jz)
+
+########################################
+# Check the amplitudes really are the requested grid points
+########################################
+# Ax/Ay/Az are recovered from the turn-0 normalised coordinates after a full
+# round trip (build_particles -> track -> build_particles ->
+# get_normalized_coordinates). They must reproduce the amplitudes this chunk
+# was asked for; if they do not, the normalisation or the ordering is wrong
+# and every downstream plot is meaningless.
+if SCAN_MODE == "xy":
+    _grid_a, _grid_b = np.meshgrid(NORM_X_ARRAY, NORM_Y_ARRAY, indexing="ij")
+    _amp_a, _amp_b, _names = Ax, Ay, ("Ax", "Ay")
+elif SCAN_MODE == "zx":
+    _grid_a, _grid_b = np.meshgrid(NORM_Z_ARRAY, NORM_X_ARRAY, indexing="ij")
+    _amp_a, _amp_b, _names = Az, Ax, ("Az", "Ax")
+else:
+    _grid_a, _grid_b = np.meshgrid(NORM_Z_ARRAY, NORM_Y_ARRAY, indexing="ij")
+    _amp_a, _amp_b, _names = Az, Ay, ("Az", "Ay")
+
+_want_a = _grid_a.ravel()[chunk_ids]
+_want_b = _grid_b.ravel()[chunk_ids]
+
+for _name, _got, _want in ((_names[0], _amp_a, _want_a),
+                           (_names[1], _amp_b, _want_b)):
+    # Tolerance covers the `remove_zeros` nudge applied near the origin.
+    _tol = max(1E-3, 1E-4 * (_want.max() - _want.min() if _want.size else 1.0))
+    _err = np.abs(_got - _want).max()
+    assert _err <= _tol, (
+        f"{_name} does not match the requested grid: max deviation {_err:.3g} "
+        f"> tol {_tol:.3g}. The normalisation or the particle ordering is wrong.")
+print(f"Job {jobID}: grid check OK, {_names[0]} in "
+      f"[{_amp_a.min():.3f}, {_amp_a.max():.3f}], {_names[1]} in "
+      f"[{_amp_b.min():.3f}, {_amp_b.max():.3f}]")
+
+########################################
+# Report losses
+########################################
+n_lost = int(lost_mask.sum())
+print(f"Job {jobID}: {n_lost}/{n_particles} particles lost "
+      f"({100.0 * n_lost / max(n_particles, 1):.1f}%); they are saved with "
+      f"lost=True and NaN tunes, NOT dropped")
+if n_lost:
+    print(f"Job {jobID}: loss turns min/median/max = "
+          f"{loss_turns[lost_mask].min()}/"
+          f"{np.median(loss_turns[lost_mask]):.0f}/"
+          f"{loss_turns[lost_mask].max()}")
+if n_lost == n_particles:
+    print(f"Job {jobID}: WARNING - every particle in this chunk was lost")
 
 assert Jx.shape == (n_particles,)
 assert Jy.shape == (n_particles,)
