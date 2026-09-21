@@ -430,6 +430,12 @@ line.configure_radiation(model = TWISS_RADIATION_MODEL)
 ################################################################################
 # Compute normalised coordinates turn-by-turn
 ################################################################################
+beta0 = line.particle_ref.beta0[0]
+gamma0 = line.particle_ref.gamma0[0]
+nemitt_x = GEMITT_X * beta0 * gamma0
+nemitt_y = GEMITT_Y * beta0 * gamma0
+nemitt_zeta = GEMITT_Z * beta0 * gamma0
+
 x_norm, px_norm, y_norm, py_norm, zeta_norm, pzeta_norm = [], [], [], [], [], []
 for turn in range(N_TURNS):
     fake_particles = line.build_particles(
@@ -440,8 +446,12 @@ for turn in range(N_TURNS):
         zeta       = last_track.zeta[:, turn],
         delta      = last_track.delta[:, turn],
         at_element = ELE_START)
-    # TODO: NEED TO PASS EMITTANCES
-    norm_coords = tw.get_normalized_coordinates(fake_particles)
+    norm_coords = tw.get_normalized_coordinates(
+        fake_particles,
+        nemitt_x=nemitt_x,
+        nemitt_y=nemitt_y,
+        nemitt_zeta=nemitt_zeta
+    )
     x_norm.append(norm_coords.x_norm)
     px_norm.append(norm_coords.px_norm)
     y_norm.append(norm_coords.y_norm)
