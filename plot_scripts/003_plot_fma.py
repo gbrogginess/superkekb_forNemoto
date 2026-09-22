@@ -392,7 +392,10 @@ def plot_action_plane(npz_data, scan_mode, outdir):
 def plot_all_phases(npz_data, scan_mode, outdir):
     """
     Combine the phases onto one grid: each grid point keeps the WORST (largest)
-    diffusion over the phases that survived there.
+    diffusion over the phases that survived there. A grid point is treated as
+    "lost" for this plot if it was lost at at least one phase -- it is then
+    drawn grey and excluded from the worst-case colour scatter even where it
+    did survive.
 
     Grid points are identified by the integer particle_id, i.e. the index into
     the flattened amplitude grid. The previous np.unique(..., axis=0) on the
@@ -433,6 +436,13 @@ def plot_all_phases(npz_data, scan_mode, outdir):
     worst = np.full(unique_pid.size, -np.inf)
     np.maximum.at(worst, inverse[usable], diff_all[usable])
 
+    # A grid point counts as "lost" if it was lost at at least one phase, not
+    # only if it was lost at every phase. Such points are drawn grey and
+    # excluded from the worst-case colour scatter, even if they survived
+    # (and have a finite diffusion value) at other phases.
+    lost_any = np.zeros(unique_pid.size, dtype=bool)
+    np.logical_or.at(lost_any, inverse, lost_all)
+
     # Representative amplitude per grid point (identical across phases up to
     # float noise, so any sample will do).
     amp_a = np.zeros(unique_pid.size)
@@ -440,17 +450,17 @@ def plot_all_phases(npz_data, scan_mode, outdir):
     amp_a[inverse] = amp_a_all
     amp_b[inverse] = amp_b_all
 
-    has_data = np.isfinite(worst)
-    n_dead = int((~has_data).sum())
+    has_data = ~lost_any & np.isfinite(worst)
+    n_dead = int(lost_any.sum())
     if n_dead:
-        print(f"all phases: {n_dead} grid points lost at every phase "
+        print(f"all phases: {n_dead} grid points lost at at least one phase "
               f"(drawn in grey, not dropped)")
 
     fig, ax = plt.subplots(figsize=(5, 4))
     if n_dead:
-        ax.scatter(amp_a[~has_data], amp_b[~has_data], c=LOST_COLOR, s=6,
+        ax.scatter(amp_a[lost_any], amp_b[lost_any], c=LOST_COLOR, s=6,
                    alpha=0.35, linewidths=0, zorder=0,
-                   label="Lost at all phases")
+                   label="Lost at least once")
     order = np.argsort(worst[has_data])
     sc = ax.scatter(
         amp_a[has_data][order], amp_b[has_data][order], c=worst[has_data][order],
