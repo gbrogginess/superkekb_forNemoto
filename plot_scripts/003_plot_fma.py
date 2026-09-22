@@ -278,6 +278,63 @@ def plot_q_plane(npz_data, scan_mode, max_order, outdir):
         plt.close(fig)
         print(f"Saved: {out_path}")
 
+def plot_q_plane_all_phases(npz_data, scan_mode, max_order, outdir):
+    """
+    Overlay all phases onto a single Q-plane plot: every surviving (phase,
+    grid point) sample is drawn, colour-coded by its own diff_coeff. Unlike
+    plot_all_phases (action space), this does not group by particle_id --
+    tunes differ slightly between phases, so there is no single representative
+    tune per grid point to plot; the overlay just shows every sample.
+    """
+    cfg = SCAN_CONFIG[scan_mode]
+    diff_all = np.asarray(npz_data["diff_coeff"], dtype=float)
+    tune_a_all = npz_data[cfg["tune_keys"][0]]
+    tune_b_all = npz_data[cfg["tune_keys"][1]]
+    phase_all = npz_data["phase"]
+    lost_all = npz_data["lost"] if "lost" in npz_data.files else np.zeros_like(phase_all, dtype=bool)
+    lost_all = lost_all.astype(bool)
+
+    survived = ~lost_all & np.isfinite(diff_all)
+    if not np.any(survived):
+        print("Skip all-phases Q-plane: no survived particles.")
+        return
+
+    idx = np.argsort(diff_all[survived])
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sc = ax.scatter(
+        tune_a_all[survived][idx], tune_b_all[survived][idx],
+        c=diff_all[survived][idx], cmap="plasma", s=5, alpha=0.6,
+        vmin=DIFF_VMIN, vmax=DIFF_VMAX,
+    )
+
+    q0_a = get_reference_value(npz_data, cfg["q0_keys"][0])
+    q0_b = get_reference_value(npz_data, cfg["q0_keys"][1])
+    if q0_a is not None and q0_b is not None:
+        ax.scatter(q0_a, q0_b, color="red", marker="*", s=50, alpha=0.6,
+                   label=f"nominal tune = ({q0_a:.4f}, {q0_b:.4f})")
+
+    qinj_a = get_reference_value(npz_data, cfg["qinj_keys"][0])
+    qinj_b = get_reference_value(npz_data, cfg["qinj_keys"][1])
+    if qinj_a is not None and qinj_b is not None:
+        ax.scatter(qinj_a, qinj_b, color="orange", marker="*", s=50, alpha=0.6,
+                   label=f"initial tune = ({qinj_a:.4f}, {qinj_b:.4f})")
+
+    add_resonance_lines(ax, max_order)
+    ax.set_xlabel(cfg["tune_labels"][0])
+    ax.set_ylabel(cfg["tune_labels"][1])
+    ax.set_title("Q-plane, all phases overlaid")
+    ax.grid(True, alpha=0.3)
+    if (q0_a is not None and q0_b is not None) or (qinj_a is not None and qinj_b is not None):
+        ax.legend(loc="best")
+
+    fig.colorbar(sc, ax=ax, label=r"$D=\log_{10}(\sqrt{\Delta Q_x^2+\Delta Q_y^2})$")
+    fig.tight_layout()
+    out_path = outdir / "qplane_all_phases.png"
+    fig.savefig(out_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {out_path}")
+
 def plot_diff_components(npz_data, scan_mode, outdir):
     cfg = SCAN_CONFIG[scan_mode]
     phase_all = npz_data["phase"]
@@ -527,6 +584,7 @@ def main():
 
         if args.qplane:
             plot_q_plane(data, scan_mode, max_order, outdir)
+            plot_q_plane_all_phases(data, scan_mode, max_order, outdir)
         if args.diff:
             plot_diff_components(data, scan_mode, outdir)
         if not args.no_action:
