@@ -76,7 +76,7 @@ SCAN_CONFIG = {
     },
 }
 
-DIFF_VMIN = -8
+DIFF_VMIN = -7
 DIFF_VMAX = -3
 
 # Colours for particles that carry no diffusion value
