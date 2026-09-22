@@ -382,6 +382,7 @@ print(f"\nJob {jobID}: phase index {PHASE_IDX} (phase = {JOB_PHASE:.4f}), "
 
 particles = generate_particle_grid(
     line          = line,
+    tw            = tw,
     phase         = JOB_PHASE,
     beamsizes     = beamsizes,
     gemitt_x      = GEMITT_X,

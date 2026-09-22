@@ -41,6 +41,7 @@ def remove_zeros(values, zero_tol, sigma = 1E-6):
 ################################################################################
 def generate_particle_grid(
         line,
+        tw,
         phase,
         beamsizes,
         gemitt_x,
@@ -55,6 +56,24 @@ def generate_particle_grid(
     """
     Build particles for tracking.
 
+    tw : xtrack TwissTable
+        Reference twiss the (x_norm, px_norm, ...) grid is defined against.
+        Its W_matrix and particle_on_co are passed explicitly to
+        line.build_particles() below so that the normalized->physical map
+        used to build the grid is *exactly* this tw, regardless of the
+        line's current state (e.g. whether a beam-beam element installed on
+        `line` is currently switched on or off).
+
+        Without this, line.build_particles(x_norm=..., nemitt_x=...) calls
+        line.twiss() internally and uses whatever twiss the line currently
+        gives -- which silently differs from `tw` once a beam-beam element
+        has been turned on, because beam-beam changes the closed orbit/optics
+        it sees. The grid would then be built against one linear normal form
+        while every downstream analysis (get_normalized_coordinates, the
+        action/amplitude grid-check assertion in run.py) uses `tw`, so the
+        recovered turn-0 amplitudes silently stop matching the requested
+        grid. Passing tw explicitly makes grid construction independent of
+        the line's beam-beam (or any other) state.
     select_ids : array of int, optional
         Indices into the flattened (norm_a, norm_b) grid to build particles
         for. Used to track only a chunk of the full grid (htcondor split).
@@ -65,6 +84,10 @@ def generate_particle_grid(
     nemitt_x    = gemitt_x * line.particle_ref.beta0 * line.particle_ref.gamma0
     nemitt_y    = gemitt_y * line.particle_ref.beta0 * line.particle_ref.gamma0
     nemitt_zetaeta = gemitt_zeta * line.particle_ref.beta0 * line.particle_ref.gamma0
+
+    # Pin the normalized->physical map to `tw`, see the docstring above.
+    W_matrix       = tw.W_matrix[0, :, :]
+    particle_on_co = tw.particle_on_co.copy()
 
     if scan_mode == "xy":
         norm_x_grid, norm_y_grid = np.meshgrid(norm_x_array, norm_y_array, indexing = "ij")
@@ -86,12 +109,14 @@ def generate_particle_grid(
         norm_py_values = remove_zeros(norm_py_values, zero_tol, sigma = beamsizes.sigma_py[0])
 
         particles = line.build_particles(
-            x_norm     = norm_x_values,
-            px_norm    = norm_px_values,
-            y_norm     = norm_y_values,
-            py_norm    = norm_py_values,
-            nemitt_x   = nemitt_x,
-            nemitt_y   = nemitt_y)
+            x_norm         = norm_x_values,
+            px_norm        = norm_px_values,
+            y_norm         = norm_y_values,
+            py_norm        = norm_py_values,
+            nemitt_x       = nemitt_x,
+            nemitt_y       = nemitt_y,
+            W_matrix       = W_matrix,
+            particle_on_co = particle_on_co)
 
     elif scan_mode == "zx":
         norm_z_grid, norm_x_grid = np.meshgrid(norm_z_array, norm_x_array, indexing = "ij")
@@ -113,13 +138,15 @@ def generate_particle_grid(
         norm_px_values = remove_zeros(norm_px_values, zero_tol, sigma = beamsizes.sigma_px[0])
 
         particles = line.build_particles(
-            x_norm     = norm_x_values,
-            px_norm    = norm_px_values,
-            zeta_norm  = norm_z_values,
-            pzeta_norm = norm_pz_values,
-            nemitt_x   = nemitt_x,
-            nemitt_y   = nemitt_y,
-            nemitt_zeta   = nemitt_zetaeta)
+            x_norm         = norm_x_values,
+            px_norm        = norm_px_values,
+            zeta_norm      = norm_z_values,
+            pzeta_norm     = norm_pz_values,
+            nemitt_x       = nemitt_x,
+            nemitt_y       = nemitt_y,
+            nemitt_zeta    = nemitt_zetaeta,
+            W_matrix       = W_matrix,
+            particle_on_co = particle_on_co)
 
     elif scan_mode == "zy":
         norm_z_grid, norm_y_grid = np.meshgrid(norm_z_array, norm_y_array, indexing = "ij")
@@ -141,13 +168,15 @@ def generate_particle_grid(
         norm_py_values = remove_zeros(norm_py_values, zero_tol, sigma = beamsizes.sigma_py[0])
 
         particles = line.build_particles(
-            y_norm     = norm_y_values,
-            py_norm    = norm_py_values,
-            zeta_norm  = norm_z_values,
-            pzeta_norm = norm_pz_values,
-            nemitt_x   = nemitt_x,
-            nemitt_y   = nemitt_y,
-            nemitt_zeta   = nemitt_zetaeta)
+            y_norm         = norm_y_values,
+            py_norm        = norm_py_values,
+            zeta_norm      = norm_z_values,
+            pzeta_norm     = norm_pz_values,
+            nemitt_x       = nemitt_x,
+            nemitt_y       = nemitt_y,
+            nemitt_zeta    = nemitt_zetaeta,
+            W_matrix       = W_matrix,
+            particle_on_co = particle_on_co)
 
     else:
         raise ValueError(f"Invalid scan_mode: {scan_mode}. Must be one of 'xy', 'zx', or 'zy'.")
